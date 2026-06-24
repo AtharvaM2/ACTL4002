@@ -87,36 +87,66 @@ agri_rural_long <- agri_philippines %>%
 ## --- 1b. Climate & rainfall (EM-DAT-style EVENT-LEVEL data) ---
 ## climate_rain_philippines is event-level: one row per disaster, with
 ## fields like Disaster Type, Start Year, Total Damage, Total Affected,
-## etc. This is NOT one-row-per-year, so it must be AGGREGATED to annual
-## before it can join the rest of the panel. Adjust the exact column
-## names below once glimpse() output confirms them (likely "Start Year"
-## -> start_year after clean_names()).
-
+## Magnitude, Magnitude Scale, etc. This is NOT one-row-per-year, so it
+## must be AGGREGATED to annual before it can join the rest of the panel.
+## Adjust the exact column names below once glimpse() output confirms
+## them (likely "Start Year" -> start_year after clean_names()).
 climate_rain_clean <- climate_rain_philippines %>%
   clean_names()
 
-## Aggregate to one row per year: count of events + summed/maxed impact
-## metrics. This collapses the event-level richness into annual summary
-## stats suitable for the panel join. Keep climate_rain_clean itself
-## (event-level) as a SEPARATE table for any event-level analysis
-## (e.g. severity scaling, magnitude vs damage scatter) - don't only
-## keep the annualised version.
+## IMPORTANT - Magnitude needs care before aggregating, for two reasons:
+## 1. The UNIT depends on Magnitude Scale, which varies by Disaster Type
+##    (e.g. storms are often recorded in km/h wind speed, floods in
+##    water depth, droughts frequently have no magnitude recorded at
+##    all). Averaging magnitude across types mixes incompatible units
+##    into a meaningless number - so we average WITHIN each type only.
+## Solution: average magnitude PER DISASTER TYPE, so units stay
+## comparable within each type.
+
+## Check what magnitude scales actually appear, so you know which units
+## you're working with before trusting any average:
+climate_rain_clean %>%
+  distinct(disaster_type, magnitude_scale) %>%
+  arrange(disaster_type)
 
 climate_rain_annual <- climate_rain_clean %>%
   filter(!is.na(start_year)) %>%
   group_by(year = start_year) %>%
   summarise(
-    n_disaster_events       = n(),
-    n_drought_events        = sum(disaster_type == "Drought", na.rm = TRUE),
-    n_flood_events          = sum(disaster_type == "Flood", na.rm = TRUE),
-    n_storm_events          = sum(disaster_type == "Storm", na.rm = TRUE),
-    total_deaths            = sum(total_deaths, na.rm = TRUE),
-    total_affected          = sum(total_affected, na.rm = TRUE),
-    total_damage_adj_000us  = sum(total_damage_adjusted_000_us, na.rm = TRUE),
-    insured_damage_adj_000us = sum(insured_damage_adjusted_000_us, na.rm = TRUE),
+    n_disaster_events           = n(),
+    n_drought_events            = sum(disaster_type == "Drought", na.rm = TRUE),
+    n_flood_events               = sum(disaster_type == "Flood", na.rm = TRUE),
+    n_storm_events                = sum(disaster_type == "Storm", na.rm = TRUE),
+    total_deaths                   = sum(total_deaths, na.rm = TRUE),
+    total_affected                 = sum(total_affected, na.rm = TRUE),
+    total_damage_adj_000us         = sum(total_damage_adjusted_000_us, na.rm = TRUE),
+    insured_damage_adj_000us       = sum(insured_damage_adjusted_000_us, na.rm = TRUE),
+    reconstruction_costs_adj_000us = sum(reconstruction_costs_adjusted_000_us, na.rm = TRUE),
+    # Average magnitude split by disaster type, since units differ
+    # across types (storm wind speed vs flood depth vs drought, which
+    # is frequently unmeasured by magnitude in EM-DAT)
+    storm_magnitude_mean   = mean(magnitude[disaster_type == "Storm"], na.rm = TRUE),
+    flood_magnitude_mean   = mean(magnitude[disaster_type == "Flood"], na.rm = TRUE),
+    drought_magnitude_mean = mean(magnitude[disaster_type == "Drought"], na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  mutate(year = as.integer(year))
+  mutate(
+    year = as.integer(year),
+    # mean() on an empty filtered vector (no events of that type that
+    # year) returns NaN, not NA - clean up so joins/models don't choke
+    across(
+      c(storm_magnitude_mean, flood_magnitude_mean, drought_magnitude_mean),
+      ~ ifelse(is.nan(.x), NA, .x)
+    )
+  )
+
+## Reference table: which Magnitude Scale applies to each Disaster Type,
+## so you can label chart axes / report units correctly later. Keep this
+## alongside the annual panel rather than folding it into the numbers.
+magnitude_scale_reference <- climate_rain_clean %>%
+  filter(!is.na(magnitude)) %>%
+  count(disaster_type, magnitude_scale, sort = TRUE)
+
 
 ## --- 1c. Observed Weather Time Series ---
 ## UNCONFIRMED SHAPE - glimpse() first. Two likely cases:
@@ -216,15 +246,19 @@ dict_agri_rural <- agri_philippines %>%
   )
 
 dict_climate_annual <- tibble::tribble(
-  ~column_name,               ~source,                                  ~description,
-  "n_disaster_events",        "EM-DAT (Natural disasters - climate and rainfall)", "Total number of recorded disaster events in the Philippines that year",
-  "n_drought_events",         "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Drought",
-  "n_flood_events",           "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Flood",
-  "n_storm_events",           "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Storm",
-  "total_deaths",             "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Deaths across all disaster events that year",
-  "total_affected",           "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Affected (people) across all disaster events that year",
-  "total_damage_adj_000us",   "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Damage, Adjusted ('000 US$, CPI-adjusted) across all events that year",
-  "insured_damage_adj_000us", "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Insured Damage, Adjusted ('000 US$, CPI-adjusted) across all events that year"
+  ~column_name,                     ~source,                                  ~description,
+  "n_disaster_events",              "EM-DAT (Natural disasters - climate and rainfall)", "Total number of recorded disaster events in the Philippines that year",
+  "n_drought_events",                "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Drought",
+  "n_flood_events",                   "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Flood",
+  "n_storm_events",                    "EM-DAT (Natural disasters - climate and rainfall)", "Number of events classified Disaster Type = Storm",
+  "total_deaths",                       "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Deaths across all disaster events that year",
+  "total_affected",                      "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Affected (people) across all disaster events that year",
+  "total_damage_adj_000us",               "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Total Damage, Adjusted ('000 US$, CPI-adjusted) across all events that year",
+  "insured_damage_adj_000us",              "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Insured Damage, Adjusted ('000 US$, CPI-adjusted) across all events that year",
+  "reconstruction_costs_adj_000us",         "EM-DAT (Natural disasters - climate and rainfall)", "Sum of Reconstruction Costs, Adjusted ('000 US$, CPI-adjusted) across all events that year",
+  "storm_magnitude_mean",                    "EM-DAT (Natural disasters - climate and rainfall)", "Mean Magnitude across storm events that year - unit varies, see magnitude_scale_reference (often km/h wind speed)",
+  "flood_magnitude_mean",                     "EM-DAT (Natural disasters - climate and rainfall)", "Mean Magnitude across flood events that year - unit varies, see magnitude_scale_reference",
+  "drought_magnitude_mean",                    "EM-DAT (Natural disasters - climate and rainfall)", "Mean Magnitude across drought events that year - frequently NA, as droughts are often unmeasured by magnitude in EM-DAT"
 )
 
 ## temp_series indicator labels - pulls whatever the original
