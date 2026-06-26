@@ -52,9 +52,9 @@ emp_long <- philippines_master %>%
                  "employment_in_agriculture_male_percent_of_male_employment_modeled_ilo_estimate",
                  "employment_in_agriculture_female_percent_of_female_employment_modeled_ilo_estimate")) %>%
   dplyr::select(year,
-                Total  = employment_in_agriculture_percent_of_total_employment_modeled_ilo_estimate,
-                Male   = employment_in_agriculture_male_percent_of_male_employment_modeled_ilo_estimate,
-                Female = employment_in_agriculture_female_percent_of_female_employment_modeled_ilo_estimate) %>%
+                total  = employment_in_agriculture_percent_of_total_employment_modeled_ilo_estimate,
+                male   = employment_in_agriculture_male_percent_of_male_employment_modeled_ilo_estimate,
+                female = employment_in_agriculture_female_percent_of_female_employment_modeled_ilo_estimate) %>%
   pivot_longer(-year, names_to = "group", values_to = "pct")
 
 ggplot(emp_long, aes(year, pct, color = group)) +
@@ -109,9 +109,9 @@ index_long <- philippines_master %>%
                  "crop_production_index_2014_2016_100",
                  "livestock_production_index_2014_2016_100")) %>%
   dplyr::select(year,
-                Food      = food_production_index_2014_2016_100,
-                Crop      = crop_production_index_2014_2016_100,
-                Livestock = livestock_production_index_2014_2016_100) %>%
+                food      = food_production_index_2014_2016_100,
+                crop      = crop_production_index_2014_2016_100,
+                livestock = livestock_production_index_2014_2016_100) %>%
   pivot_longer(-year, names_to = "index_type", values_to = "index_value")
 
 ggplot(index_long, aes(year, index_value, color = index_type)) +
