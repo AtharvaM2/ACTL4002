@@ -11,7 +11,7 @@ library(pscl)
 library(janitor)
 
 # Import datasets
-agri_rural_raw <- read_excel("/Users/anuvanadkar/Documents/GitHub/ACTL4002/Data/Agriculture & Rural Development.xls")
+agri_rural_raw <- read_excel("Data/Agriculture & Rural Development.xls")
 
 #Data Clean
 colnames(agri_rural_raw) <- as.character(unlist(agri_rural_raw[3, ]))
@@ -22,24 +22,24 @@ agri_rural_clean <- agri_rural_clean %>%
 agri_philippines <- agri_rural_clean %>%
   filter(country_name == "Philippines")
 
-climate_rain <- read_excel("/Users/anuvanadkar/Documents/GitHub/ACTL4002/Data/Natural disasters - climate and rainfall.xlsx")
+climate_rain <- read_excel("Data/Natural disasters - climate and rainfall.xlsx")
 
 #Data clean
 climate_rain_philippines <- climate_rain %>%
   filter(Country == "Philippines")
 
-temp_series <- read.csv("/Users/anuvanadkar/Documents/GitHub/ACTL4002/Data/Observed Weather Time Series.csv")
+temp_series <- read.csv("Data/Observed Weather Time Series.csv")
 
-precip_20mm <- read.csv("/Users/anuvanadkar/Documents/GitHub/ACTL4002/Days_with_Precipitation_over_20mm.csv")
+precip_20mm <- read.csv("Days_with_Precipitation_over_20mm.csv")
 precip_20mm_philippines <- precip_20mm %>%
   filter(REF_AREA_LABEL == "Philippines")
 
 
-agri_govt_exp <- read.csv("/Users/anuvanadkar/Documents/GitHub/ACTL4002/The agriculture orientation index for government expenditures.csv")
+agri_govt_exp <- read.csv("The agriculture orientation index for government expenditures.csv")
 agri_govt_exp_phl <- agri_govt_exp %>%
   filter(REF_AREA_LABEL == "Philippines")
 
-official_flows_agri <- read.csv("/Users/anuvanadkar/Documents/GitHub/ACTL4002/Total official flows official development assistance plus other official flows to the agriculture sector 2000-2023 Millions US dollars 2022 constant prices.csv")
+official_flows_agri <- read.csv("Total official flows official development assistance plus other official flows to the agriculture sector 2000-2023 Millions US dollars 2022 constant prices.csv")
 official_flows_agri_phl <- official_flows_agri %>%
   filter(REF_AREA_LABEL == "Philippines")
 
