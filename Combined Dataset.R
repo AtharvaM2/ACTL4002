@@ -9,6 +9,7 @@ library(tidyr)
 library(MASS)
 library(pscl)
 library(janitor)
+library(readr)
 
 # Import datasets
 agri_rural_raw <- read_excel("Data/Agriculture & Rural Development.xls")
@@ -314,3 +315,89 @@ data_dictionary <- bind_rows(
   dict_official_flows
 ) %>%
   distinct(column_name, .keep_all = TRUE)   # in case any indicator name appears in multiple sources
+
+
+# =============================================================
+# ADDITIONS - append this block after your existing View(philippines_master)
+# line. Nothing above this point is changed.
+# =============================================================
+# WHY YOU'RE SEEING SO MANY NAs (this is largely expected, with one real bug):
+#
+# 1. Your six source files cover DIFFERENT year ranges, and full_join() (correctly)
+#    keeps the union of all of them - so the panel runs 1901-2026, but:
+#      - temp_series is the only source that goes back to 1901
+#      - the WDI agriculture block (agri_rural_long) only starts ~1960-1962
+#      - climate_rain_annual (EM-DAT) only has ~27 non-NA years - check the exact
+#        range with the diagnostic below; if your EM-DAT export had a date filter
+#        applied when you requested it, that's worth re-checking
+#      - agri_orientation_index / official_flows_agri_usd_m only start ~2000-2003
+#        (these UN SDG indicators genuinely don't exist before then - not a bug)
+#    When you View() or print() the data frame, R shows rows sorted by year
+#    ascending - so the FIRST screen you see is mostly 1901-1959, which is
+#    genuinely almost all NA. That's very likely what "it's all NA" is showing you,
+#    rather than a broken merge. The diagnostic below confirms this directly.
+#
+# 2. The one REAL bug: this script never actually writes philippines_master to
+#    disk. If something downstream is reading "philippines_master.csv" expecting
+#    this script to have produced it, that file either doesn't exist or is stale
+#    from a previous run. Fixed below.
+#
+# 3. A subtler data-quality issue worth knowing about before you quote a
+#    protection-gap percentage: sum(insured_damage_adj_000us, na.rm = TRUE) over a
+#    year where EVERY event has NA insured damage (common in EM-DAT for
+#    developing countries) returns 0, not NA. That makes "not reported" look
+#    identical to "confirmed zero insurance" in any chart built on this column
+#    (including B9 in your EDA script). Flagged, not fixed in place - your B9
+#    chart still works, this just gives you the means to caveat it correctly.
+
+## --- Coverage diagnostic: first/last non-NA year per column ---
+coverage_check <- philippines_master %>%
+  summarise(across(-year, list(
+    first_year = ~ min(year[!is.na(.x)], na.rm = TRUE),
+    last_year  = ~ max(year[!is.na(.x)], na.rm = TRUE),
+    n_present  = ~ sum(!is.na(.x))
+  ))) %>%
+  pivot_longer(everything(), names_to = "name", values_to = "value") %>%
+  separate(name, into = c("column", "stat"), sep = "_(?=first_year|last_year|n_present)") %>%
+  pivot_wider(names_from = stat, values_from = value) %>%
+  arrange(first_year)
+
+print(coverage_check, n = Inf)
+## READ: this tells you exactly which years each column actually has data for.
+## Compare n_disaster_events' range against what you THINK you requested from
+## EM-DAT - if it's narrower than expected, that's worth re-checking your export
+## filters rather than assuming the merge code is at fault.
+
+## --- Data-quality flag for insured damage (see point 3 above) ---
+## Use this alongside total_damage_adj_000us / insured_damage_adj_000us in any
+## protection-gap chart, so "not reported" and "confirmed zero" don't collapse
+## into the same number.
+insured_reporting <- climate_rain_clean %>%
+  filter(!is.na(start_year)) %>%
+  group_by(year = start_year) %>%
+  summarise(any_insured_damage_reported = any(!is.na(insured_damage_adjusted_000_us)), .groups = "drop")
+
+philippines_master <- philippines_master %>%
+  left_join(insured_reporting, by = "year")
+
+## --- THE ACTUAL FIX: save both panels to disk ---
+dir.create("data", showWarnings = FALSE)
+write_csv(philippines_master, "data/philippines_master.csv")
+write_csv(climate_rain_clean, "data/climate_rain_clean.csv")   # event-level - needed for severity modeling
+cat("\nSaved data/philippines_master.csv (", nrow(philippines_master), "rows,",
+    ncol(philippines_master), "columns) and data/climate_rain_clean.csv\n")
+
+## --- Optional: a trimmed, modelling-ready subset ---
+## For the loss modelling script, you don't want the 1901-1959 rows where almost
+## everything is NA - they'll just get dropped by filter(!is.na(...)) anyway, but
+## keeping them out of a "modelling" copy makes head()/View() actually useful.
+## Pick the cutoff based on what coverage_check above shows for your real data;
+## this guesses a reasonable starting point and is easy to adjust.
+model_start_year <- coverage_check %>%
+  filter(column %in% c("cereal_yield_kg_per_hectare", "n_storm_events")) %>%
+  pull(first_year) %>% max()
+
+philippines_master_model <- philippines_master %>% filter(year >= model_start_year)
+write_csv(philippines_master_model, "data/philippines_master_model.csv")
+cat("Modelling-ready subset starts at", model_start_year, "with",
+    nrow(philippines_master_model), "rows.\n")
