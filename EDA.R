@@ -32,11 +32,11 @@ COL_GAP     <- "#993C1D"
 # =============================================================
 
 ## A1. Rural population and growth rate (two stacked panels)
-p_a1a <- ggplot(trim_to_data(philippines_master, "rural_population"), aes(year, rural_population / 1e6)) +
+p_a1a <- ggplot(trim_to_data(philippines_master_synthetic, "rural_population"), aes(year, rural_population / 1e6)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Yearly Rural Population", y = "No. of People (Millions)", x = NULL)
 
-p_a1b <- ggplot(trim_to_data(philippines_master, "rural_population_growth_annual_percent"), aes(year, rural_population_growth_annual_percent)) +
+p_a1b <- ggplot(trim_to_data(philippines_master_synthetic, "rural_population_growth_annual_percent"), aes(year, rural_population_growth_annual_percent)) +
   geom_line(color = COL_AGRI, linewidth = 0.8) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
   labs(title = "Rural Population Growth Rate", y = "% annual growth", x = "Year")
@@ -47,7 +47,7 @@ grid.arrange(p_a1a, p_a1b, ncol = 1)
 ## grow organically without expanding geographic coverage.
 
 ## A2. Agricultural Employment - total vs male vs female
-emp_long <- philippines_master %>%
+emp_long <- philippines_master_synthetic %>%
   trim_to_data(c("employment_in_agriculture_percent_of_total_employment_modeled_ilo_estimate",
                  "employment_in_agriculture_male_percent_of_male_employment_modeled_ilo_estimate",
                  "employment_in_agriculture_female_percent_of_female_employment_modeled_ilo_estimate")) %>%
@@ -68,11 +68,11 @@ ggplot(emp_long, aes(year, pct, color = group)) +
 ## distribution channel should actively target female-headed farms.
 
 ## A3. Agriculture value added - % GDP and current US$ (two panels, different units)
-p_a3a <- ggplot(trim_to_data(philippines_master, "agriculture_forestry_and_fishing_value_added_percent_of_gdp"), aes(year, agriculture_forestry_and_fishing_value_added_percent_of_gdp)) +
+p_a3a <- ggplot(trim_to_data(philippines_master_synthetic, "agriculture_forestry_and_fishing_value_added_percent_of_gdp"), aes(year, agriculture_forestry_and_fishing_value_added_percent_of_gdp)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Agriculture, forestry & fishing — % of GDP", y = "% GDP", x = NULL)
 
-p_a3b <- ggplot(trim_to_data(philippines_master, "agriculture_forestry_and_fishing_value_added_current_us"), aes(year, agriculture_forestry_and_fishing_value_added_current_us / 1e9)) +
+p_a3b <- ggplot(trim_to_data(philippines_master_synthetic, "agriculture_forestry_and_fishing_value_added_current_us"), aes(year, agriculture_forestry_and_fishing_value_added_current_us / 1e9)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Agriculture, forestry & fishing — Value Added", y = "US$ billion", x = "Year")
 
@@ -84,7 +84,7 @@ grid.arrange(p_a3a, p_a3b, ncol = 1)
 ## should lean on ABSOLUTE value/employment, not GDP share alone.
 
 ## A4. Cereal yield (kg/hectare) - the core yield-volatility variable
-ggplot(trim_to_data(philippines_master, "cereal_yield_kg_per_hectare"), aes(year, cereal_yield_kg_per_hectare)) +
+ggplot(trim_to_data(philippines_master_synthetic, "cereal_yield_kg_per_hectare"), aes(year, cereal_yield_kg_per_hectare)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   geom_smooth(method = "lm", se = FALSE, color = "grey40", linetype = "dashed") +
   labs(title = "Cereal yield, Philippines", y = "kg per hectare", x = "Year",
@@ -94,17 +94,17 @@ ggplot(trim_to_data(philippines_master, "cereal_yield_kg_per_hectare"), aes(year
 ## year-to-year noise = climate-driven volatility, exactly the signature
 ## your product targets. Detrend (residuals vs fitted) for the CV calc:
 
-yield_trend <- lm(cereal_yield_kg_per_hectare ~ year, data = philippines_master,
+yield_trend <- lm(cereal_yield_kg_per_hectare ~ year, data = philippines_master_synthetic,
                   na.action = na.exclude)
-philippines_master$cereal_yield_resid <- residuals(yield_trend)
+philippines_master_synthetic$cereal_yield_resid <- residuals(yield_trend)
 cat("Cereal yield CV (detrended):",
-    sd(philippines_master$cereal_yield_resid, na.rm = TRUE) /
-      mean(philippines_master$cereal_yield_kg_per_hectare, na.rm = TRUE), "\n")
+    sd(philippines_master_synthetic$cereal_yield_resid, na.rm = TRUE) /
+      mean(philippines_master_synthetic$cereal_yield_kg_per_hectare, na.rm = TRUE), "\n")
 
 # sd / mean = variability in yield index 
 
 ## A5. Food vs crop vs livestock production index (base 2014-2016=100)
-index_long <- philippines_master %>%
+index_long <- philippines_master_synthetic %>%
   trim_to_data(c("food_production_index_2014_2016_100",
                  "crop_production_index_2014_2016_100",
                  "livestock_production_index_2014_2016_100")) %>%
@@ -124,7 +124,7 @@ ggplot(index_long, aes(year, index_value, color = index_type)) +
 ## direct visual validation of the peril before touching satellite data.
 
 ## A6. Average precipitation in depth (the long-run baseline)
-ggplot(trim_to_data(philippines_master, "average_precipitation_in_depth_mm_per_year"), aes(year, average_precipitation_in_depth_mm_per_year)) +
+ggplot(trim_to_data(philippines_master_synthetic, "average_precipitation_in_depth_mm_per_year"), aes(year, average_precipitation_in_depth_mm_per_year)) +
   geom_line(color = COL_WATER, linewidth = 1) +
   geom_hline(aes(yintercept = mean(average_precipitation_in_depth_mm_per_year, na.rm = TRUE)),
              linetype = "dashed", color = "grey40") +
@@ -133,12 +133,12 @@ ggplot(trim_to_data(philippines_master, "average_precipitation_in_depth_mm_per_y
 ##HOW CAN I CHANGE THIS 
 
 ## A7. Freshwater withdrawals (agriculture) & arable land - two panels
-p_a7a <- ggplot(trim_to_data(philippines_master, "annual_freshwater_withdrawals_agriculture_percent_of_total_freshwater_withdrawal"),
+p_a7a <- ggplot(trim_to_data(philippines_master_synthetic, "annual_freshwater_withdrawals_agriculture_percent_of_total_freshwater_withdrawal"),
                 aes(year, annual_freshwater_withdrawals_agriculture_percent_of_total_freshwater_withdrawal)) +
   geom_line(color = COL_WATER, linewidth = 1) +
   labs(title = "Freshwater Withdrawals — Agriculture Share", y = "% of Total Withdrawal", x = NULL)
 
-p_a7b <- ggplot(trim_to_data(philippines_master, "arable_land_hectares_per_person"),
+p_a7b <- ggplot(trim_to_data(philippines_master_synthetic, "arable_land_hectares_per_person"),
                 aes(year, arable_land_hectares_per_person)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Arable land per person", y = "Hectares/person", x = "Year")
@@ -149,26 +149,26 @@ grid.arrange(p_a7a, p_a7b, ncol = 1)
 ## but is secondary context, not a primary actuarial input.
 
 ## A8. Agricultural land (% of land area)
-ggplot(trim_to_data(philippines_master, "agricultural_land_percent_of_land_area"), aes(year, agricultural_land_percent_of_land_area)) +
+ggplot(trim_to_data(philippines_master_synthetic, "agricultural_land_percent_of_land_area"), aes(year, agricultural_land_percent_of_land_area)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Agricultural land as % of Total Land Area", y = "% of Total Land Area", x = "Year")
 
 ## A9. Agriculture GDP share (standalone version, in case A3 is split
 ## across slides differently)
-ggplot(trim_to_data(philippines_master, "agriculture_forestry_and_fishing_value_added_percent_of_gdp"), aes(year, agriculture_forestry_and_fishing_value_added_percent_of_gdp)) +
+ggplot(trim_to_data(philippines_master_synthetic, "agriculture_forestry_and_fishing_value_added_percent_of_gdp"), aes(year, agriculture_forestry_and_fishing_value_added_percent_of_gdp)) +
   geom_area(fill = COL_AGRI, alpha = 0.3) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Agriculture GDP share over time", y = "% Share of GDP", x = "Year")
 
 ## A10. Agricultural raw material imports (% of merchandise imports)
-ggplot(trim_to_data(philippines_master, "agricultural_raw_materials_imports_percent_of_merchandise_imports"), aes(year, agricultural_raw_materials_imports_percent_of_merchandise_imports)) +
+ggplot(trim_to_data(philippines_master_synthetic, "agricultural_raw_materials_imports_percent_of_merchandise_imports"), aes(year, agricultural_raw_materials_imports_percent_of_merchandise_imports)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Agricultural Raw Material Imports", y = "% of Merchandise Imports", x = "Year")
 ## READ: genuinely peripheral to your core insurance case - include
 ## only if you need supply-chain context; don't spend slide space here.
 
 ## A11. Rural population vs rural electricity access (distribution feasibility)
-elec_pop <- philippines_master %>%
+elec_pop <- philippines_master_synthetic %>%
   trim_to_data(c("rural_population_percent_of_total_population",
                  "access_to_electricity_rural_percent_of_rural_population")) %>%
   dplyr::select(year, rural_population_percent_of_total_population,
@@ -188,7 +188,7 @@ ggplot(elec_pop, aes(year, value, color = metric)) +
 ## enrolment is still necessary.
 
 ## A12. Fertiliser consumption (proxy for input intensity / learning premium baseline)
-ggplot(trim_to_data(philippines_master, "fertilizer_consumption_kilograms_per_hectare_of_arable_land"), aes(year, fertilizer_consumption_kilograms_per_hectare_of_arable_land)) +
+ggplot(trim_to_data(philippines_master_synthetic, "fertilizer_consumption_kilograms_per_hectare_of_arable_land"), aes(year, fertilizer_consumption_kilograms_per_hectare_of_arable_land)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   labs(title = "Fertilizer Consumption", y = "kg / hectare of Arable Land", x = "Year")
 ## READ: a rough baseline of input-use intensity, useful to sense-check
@@ -264,7 +264,7 @@ ggplot(affected_by_type, aes(year, total_affected / 1e6, fill = disaster_type)) 
   labs(title = "People Affected by Disasters per Year", y = "No. of People (millions)", x = "Year", fill = NULL)
 
 ## B6. Total deaths - trend over time
-ggplot(trim_to_data(philippines_master, "total_deaths"), aes(year, total_deaths)) +
+ggplot(trim_to_data(philippines_master_synthetic, "total_deaths"), aes(year, total_deaths)) +
   geom_col(fill = COL_SEVERE) +
   labs(title = "Disaster Deaths per Year", y = "Total Deaths", x = "Year")
 ## READ: weaker signal for crop insurance specifically (a typhoon can
@@ -287,12 +287,12 @@ ggplot(month_year_heat, aes(start_month, start_year, fill = n)) +
 ## particular months (typically Jul-Oct for PH typhoons).
 
 ## B8. Total damage (CPI/adjusted) over time
-ggplot(trim_to_data(philippines_master, "total_damage_adj_000us"), aes(year, total_damage_adj_000us / 1e6)) +
+ggplot(trim_to_data(philippines_master_synthetic, "total_damage_adj_000us"), aes(year, total_damage_adj_000us / 1e6)) +
   geom_col(fill = COL_GAP) +
   labs(title = "Total Disaster Damage (Adjusted)", y = "US$ billion", x = "Year")
 
 ## B9. Total damage vs insured damage = protection gap (THE key severity chart)
-gap_data <- philippines_master %>%
+gap_data <- philippines_master_synthetic %>%
   filter(!is.na(total_damage_adj_000us)) %>%
   mutate(
     uninsured_damage_000us = total_damage_adj_000us - insured_damage_adj_000us,
@@ -326,7 +326,7 @@ ggplot(gap_data, aes(year, protection_gap_ratio)) +
 ## This is the single most important chart for trigger calibration - it
 ## directly tests whether your proposed index (rainfall) predicts the
 ## outcome you're insuring against (yield loss).
-rain_yield <- philippines_master %>%
+rain_yield <- philippines_master_synthetic %>%
   dplyr::select(year, average_precipitation_in_depth_mm_per_year, cereal_yield_resid) %>%
   filter(!is.na(average_precipitation_in_depth_mm_per_year), !is.na(cereal_yield_resid))
 
@@ -346,7 +346,7 @@ ggplot(rain_yield, aes(average_precipitation_in_depth_mm_per_year, cereal_yield_
 ## correct for exactly this kind of basis risk.
 
 ## C2. Disaster frequency vs agricultural value added
-ggplot(philippines_master %>% filter(!is.na(n_disaster_events)),
+ggplot(philippines_master_synthetic %>% filter(!is.na(n_disaster_events)),
        aes(n_disaster_events, agriculture_forestry_and_fishing_value_added_percent_of_gdp)) +
   geom_point(color = COL_AGRI, size = 2) +
   geom_smooth(method = "lm", se = FALSE, color = "grey40", linetype = "dashed") +
@@ -366,7 +366,7 @@ ggplot(gap_data, aes(year, total_damage_adj_000us / 1e6)) +
 ## C4. Days with precipitation over 20mm - flood-risk proxy distinct from
 ## total annual rainfall volume (same total, very different flood risk,
 ## if concentrated into fewer heavy-rain days)
-ggplot(trim_to_data(philippines_master, "days_precip_over_20mm"), aes(year, days_precip_over_20mm)) +
+ggplot(trim_to_data(philippines_master_synthetic, "days_precip_over_20mm"), aes(year, days_precip_over_20mm)) +
   geom_line(color = COL_WATER, linewidth = 1) +
   geom_smooth(method = "lm", se = FALSE, color = "grey40", linetype = "dashed") +
   labs(title = "Days per Year with >20mm Precipitation",
@@ -377,7 +377,7 @@ ggplot(trim_to_data(philippines_master, "days_precip_over_20mm"), aes(year, days
 ## C5. Official development flows to agriculture vs total disaster damage -
 ## tests whether aid flows track disaster severity; supports your
 ## public-private structure argument.
-aid_vs_damage <- philippines_master %>%
+aid_vs_damage <- philippines_master_synthetic %>%
   dplyr::select(year, official_flows_agri_usd_m, total_damage_adj_000us) %>%
   filter(!is.na(official_flows_agri_usd_m), !is.na(total_damage_adj_000us)) %>%
   mutate(total_damage_usd_m = total_damage_adj_000us / 1000)
@@ -394,7 +394,7 @@ ggplot(aid_vs_damage, aes(year)) +
 ## reinsurance/development bank layers in your public-private structure.
 
 ## C6. Agriculture orientation index for government expenditure
-ggplot(trim_to_data(philippines_master, "agri_orientation_index"), aes(year, agri_orientation_index)) +
+ggplot(trim_to_data(philippines_master_synthetic, "agri_orientation_index"), aes(year, agri_orientation_index)) +
   geom_line(color = COL_AGRI, linewidth = 1) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
   labs(title = "Agriculture Orientation Index for Government Expenditure",
@@ -418,11 +418,11 @@ ggplot(trim_to_data(philippines_master, "agri_orientation_index"), aes(year, agr
 ## same residuals down by decade so you can show (or rule out) a "getting worse"
 ## pattern rather than asserting it. Re-fits its own trend so it works even if
 ## you run Part D before Part A4 in a session.
-yield_trend_d <- lm(cereal_yield_kg_per_hectare ~ year, data = philippines_master,
+yield_trend_d <- lm(cereal_yield_kg_per_hectare ~ year, data = philippines_master_synthetic,
                      na.action = na.exclude)
-philippines_master$cereal_yield_resid_d <- residuals(yield_trend_d)
+philippines_master_synthetic$cereal_yield_resid_d <- residuals(yield_trend_d)
 
-decade_cv <- philippines_master %>%
+decade_cv <- philippines_master_synthetic %>%
   filter(!is.na(cereal_yield_kg_per_hectare)) %>%
   mutate(decade = paste0(floor(year / 10) * 10, "s")) %>%
   group_by(decade) %>%
@@ -483,7 +483,7 @@ insured_reporting <- climate_rain_clean %>%
   summarise(any_insured_damage_reported = any(!is.na(insured_damage_adjusted_000_us)),
             .groups = "drop")
 
-gap_data_d <- philippines_master %>%
+gap_data_d <- philippines_master_synthetic %>%
   filter(!is.na(total_damage_adj_000us)) %>%
   left_join(insured_reporting, by = "year") %>%
   mutate(
@@ -510,7 +510,7 @@ ggplot(gap_data_d, aes(year, protection_gap_ratio, fill = data_quality)) +
 ## A3 charts agriculture's GDP SHARE and VALUE in dollars; this charts the
 ## PHYSICAL area under cereal cultivation - the actual insurable hectare base,
 ## which is what your portfolio size (and therefore premium pool) scales with.
-ggplot(trim_to_data(philippines_master, "land_under_cereal_production_hectares"),
+ggplot(trim_to_data(philippines_master_synthetic, "land_under_cereal_production_hectares"),
        aes(year, land_under_cereal_production_hectares / 1e6)) +
   geom_line(color = COL_WATER, linewidth = 1) +
   labs(title = "Land under cereal production, Philippines",
